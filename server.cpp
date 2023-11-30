@@ -5,6 +5,7 @@
 #include <unistd.h>
 
 #include "utils.h"
+#include <iostream>
 
 int main() {
     int listen_sockfd, send_sockfd;
@@ -47,13 +48,36 @@ int main() {
     client_addr_to.sin_family = AF_INET;
     client_addr_to.sin_addr.s_addr = inet_addr(LOCAL_HOST);
     client_addr_to.sin_port = htons(CLIENT_PORT_TO);
+    
 
     // Open the target file for writing (always write to output.txt)
     FILE *fp = fopen("output.txt", "wb");
 
     // TODO: Receive file from the client and save it as output.txt
+    fprintf(fp, "the whale");
+    int BUFFER_SIZE  = 1024;
+    char buffer2[BUFFER_SIZE];
+    // ssize_t bytes_read;
+    // int server_socket, client_socket;
+    // socklen_t client_len;
 
-    
+    // while (1) {
+    //     client_socket = accept(server_socket, (struct sockaddr*)&client_addr_from, &client_len);
+    //     if (client_socket == -1) {
+    //         perror("accept failed");
+    //         continue;
+    //     }
+        
+    //     printf("Accepted connection from %s:%d\n", inet_ntoa(client_addr_from.sin_addr), ntohs(client_addr_from.sin_port));
+    //     close(client_socket);
+    // }
+
+    // bytes_read = recv(client_socket, buffer2, sizeof(buffer2) - 1, 0);
+    // if (bytes_read <= 0) {
+    //     std::cout << "error" << std::endl;  // Connection closed or error
+    // }
+    //buffer2[bytes_read] = '\0';
+    std::cout << buffer2 << std::endl;
 
     fclose(fp);
     close(listen_sockfd);
