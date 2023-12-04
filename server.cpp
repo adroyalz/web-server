@@ -12,8 +12,8 @@ int main() {
     struct sockaddr_in server_addr, client_addr_from, client_addr_to;
     struct packet buffer;
     socklen_t addr_size = sizeof(client_addr_from);
-    int expected_seq_num = 0;
-    int seq_num = 0;
+    int expected_seq_num = 1;
+    int seq_num = 1;
     int recv_len;
     struct packet ack_pkt;
 
@@ -60,50 +60,33 @@ int main() {
     int valsent = 0;
     int ack=0;
     int lastSeqnumAcked = 0;
-    bool tempe = true;
 
     while (true){ //valread != -1
-        expected_seq_num++;
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
-        if(buffer.seqnum > expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed
-            //check if receiving a pkt we already ACKed
-            if(buffer.seqnum == lastSeqnumAcked){
-                //then ACK didnt send so resend it
-                std::cout << "resending ACK for pkt with seq num: " << buffer.seqnum << std::endl;
-                ack = 1;
-                build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
-                valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
-            }
-            //send ack with ack=0?
+        if(buffer.seqnum != expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed
             ack = 1;
             build_packet(&ack_pkt, seq_num, lastSeqnumAcked, 0, ack, 0, NULL);
             valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));;
-            expected_seq_num--;
+            std::cout << "OUT OF ORDER PACKET! (seq num: " << buffer.seqnum << "), instead ACKing seq num: " << lastSeqnumAcked << std::endl;
             continue;
         }
-        else{ //in-order packet: accept and ACK
-            seq_num++;
-            fprintf(fp, buffer.payload);
+        else if(buffer.seqnum == expected_seq_num){ //in-order packet: accept and ACK
+            fprintf(fp, buffer.payload); //don't print the last char or two?
+            std::cout << "received packet: " << buffer.seqnum << std::endl;
             //ACK the packet
             ack = 1;
-            int forthis = buffer.seqnum;
-            if(forthis==999){
-                forthis = 1000;
-            }
-            else if(forthis == 1000 && tempe){
-                forthis = 999;
-                tempe = false;
-            }
-            build_packet(&ack_pkt, seq_num, forthis, 0, ack, 0, NULL);
-            //build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
             valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
             lastSeqnumAcked = buffer.seqnum;
+            expected_seq_num++;
+            seq_num++;
+            std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
         }
+        //printRecv(&buffer);
         if(buffer.last){
             std::cout << "received last packet" << std::endl;
             break;
         }
-        printRecv(&buffer);
     }
 
     fclose(fp);
