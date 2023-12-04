@@ -120,12 +120,12 @@ int main(int argc, char *argv[]) {
             bytecount += valsent;
 
             windowBuffer[(seq_num%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE] = pkt;
-            if(seq_num==10){
-                for(int z=0; z<WINDOW_SIZE; z++){
-                    std::cout << "Packet " << windowBuffer[z].seqnum << " in window buffer" << std::endl;    
-                }
-                return 0;
-            }
+            // if(seq_num==10){
+            //     for(int z=0; z<WINDOW_SIZE; z++){
+            //         std::cout << "Packet " << windowBuffer[z].seqnum << " in window buffer" << std::endl;    
+            //     }
+            //     return 0;
+            // }
         }
         else{ //resend packet (until get ack?)  
             while(valread == -1){
@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
                     }
                 }
             }
-            else if(ack_pkt.acknum != expected_ack_num && ackedPkts[(ack_pkt.acknum%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE]==0){ //note: second condition skips this loop if the ack num was not expected, but was previously received when it was expected (ie duplicate ACK)
+            else if(ack_pkt.acknum != expected_ack_num ){ //&& ackedPkts[(ack_pkt.acknum%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE]==0){ //note: second condition skips this loop if the ack num was not expected, but was previously received when it was expected (ie duplicate ACK)
                 std::cout << "received ACK pkt with acknum: " << ack_pkt.acknum << " but expected acknum: " << expected_ack_num << std::endl;
                 //for now ignoring the case that received acknum > expected_ack_num, is this even a possible case?
                 //assuming ack_pkt.acknum < expected_ack_num, that means packets>ack_pkt.acknum in window were not received correctly

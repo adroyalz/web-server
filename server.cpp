@@ -60,11 +60,12 @@ int main() {
     int valsent = 0;
     int ack=0;
     int lastSeqnumAcked = 0;
+    bool tempe = true;
 
     while (true){ //valread != -1
         expected_seq_num++;
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
-        if(buffer.seqnum != expected_seq_num){ //out of order packet; reject for now
+        if(buffer.seqnum > expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed
             //check if receiving a pkt we already ACKed
             if(buffer.seqnum == lastSeqnumAcked){
                 //then ACK didnt send so resend it
@@ -74,18 +75,27 @@ int main() {
                 valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
             }
             //send ack with ack=0?
-            ack = 0;
-            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+            ack = 1;
+            build_packet(&ack_pkt, seq_num, lastSeqnumAcked, 0, ack, 0, NULL);
             valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));;
             expected_seq_num--;
             continue;
         }
         else{ //in-order packet: accept and ACK
-            //seq_num++;
+            seq_num++;
             fprintf(fp, buffer.payload);
             //ACK the packet
             ack = 1;
-            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+            int forthis = buffer.seqnum;
+            if(forthis==999){
+                forthis = 1000;
+            }
+            else if(forthis == 1000 && tempe){
+                forthis = 999;
+                tempe = false;
+            }
+            build_packet(&ack_pkt, seq_num, forthis, 0, ack, 0, NULL);
+            //build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
             valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
             lastSeqnumAcked = buffer.seqnum;
         }
