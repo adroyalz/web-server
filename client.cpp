@@ -74,38 +74,41 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO: Read from file, and initiate reliable data transfer to the server
-    int c;
     std::string file_content = "";
 
-    // build_packet(&ack_pkt, 1, 2, 'e', '1', 15, "hello world");
-    // std::cout << ack_pkt.length << " " << sizeof(ack_pkt)/sizeof(char) << std::endl;
-
-    //std::cout << "writing, to port: " << htons(server_addr_to.sin_port) << std::endl;
     int valsent = 0;
     int bytecount = 0;
     bool reachedEnd = false;
-    int responseLength = 0;
+    int lastIndex = 0;
 
     while(valsent != -1 && !reachedEnd){
-        char response[256] = {};
-        for(int i=0; i<sizeof(response); i++){
+        for(int i=0; i<PAYLOAD_SIZE; i++){
             int c = getc(fp);
-            responseLength = i;
+            lastIndex = i; //TODO: still need to use this --> maybe make the elements after index i in buffer some known empty value?
             if(c == EOF){
+                last = '1';
                 reachedEnd = true;
                 break;
             }
-            response[i] = c;
+            buffer[i] = c;
         }
-        build_packet(&pkt, 1, 1, NULL, 'n', sizeof(response), response);
+        if(lastIndex < PAYLOAD_SIZE-1){
+            //std::cout << last << " " << PAYLOAD_SIZE-1 << " " << sizeof(buffer)/sizeof(char) << std::endl;
+            for(int j=lastIndex; j<PAYLOAD_SIZE; j++){
+                buffer[j] = '>';
+            }
+        }
+        ack=0;
+        ack_num = 0;
+        seq_num++;
+        build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer), buffer);
         std::cout << pkt.payload;
         valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-        //valsent = sendto(send_sockfd, response, sizeof(response), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
         bytecount += valsent;
     }
     std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
-    build_packet(&pkt, 1, 1, NULL, 'y', 0, NULL);
-    valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+    // build_packet(&pkt, 1, 1, 0, 'y', 0, NULL);
+    // valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
 
     fclose(fp);
     close(listen_sockfd);
