@@ -97,13 +97,15 @@ int main(int argc, char *argv[]) {
             }
             response[i] = c;
         }
-        std::cout << response;
-        valsent = sendto(send_sockfd, response, sizeof(response), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+        build_packet(&pkt, 1, 1, NULL, 'n', sizeof(response), response);
+        std::cout << pkt.payload;
+        valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+        //valsent = sendto(send_sockfd, response, sizeof(response), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
         bytecount += valsent;
     }
     std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
-    char endbuf[] = {"ACK"};
-    valsent = sendto(send_sockfd, endbuf, sizeof(endbuf), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+    build_packet(&pkt, 1, 1, NULL, 'y', 0, NULL);
+    valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
 
     fclose(fp);
     close(listen_sockfd);
