@@ -83,6 +83,12 @@ int main(int argc, char *argv[]) {
     int lastIndex = 0;
     bool resending = false;
     bool noneed = false;
+    packet windowBuffer[WINDOW_SIZE];
+    int ackedPkts[WINDOW_SIZE];
+    for(int i=0; i<WINDOW_SIZE; i++){
+        ackedPkts[i] = 0;
+    }
+    int expected_ack_num = 1;
 
     while(valsent != -1 && !reachedEnd){
         if(!resending){
@@ -97,7 +103,6 @@ int main(int argc, char *argv[]) {
                 buffer[i] = c;
             }
             if(lastIndex < PAYLOAD_SIZE-1){
-                //std::cout << last << " " << PAYLOAD_SIZE-1 << " " << sizeof(buffer)/sizeof(char) << std::endl;
                 for(int j=lastIndex; j<PAYLOAD_SIZE; j++){
                     buffer[j] = '>';
                 }
@@ -105,14 +110,22 @@ int main(int argc, char *argv[]) {
             ack=0;
             ack_num = 0;
             seq_num++;
+            //expected_ack_num++; //only increase this after getting an ack for a packet?
             // if(seq_num == 1000){
             //     seq_num++;
             // }
             build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer)/sizeof(char), buffer);
-            std::cout << pkt.payload;
             valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
             std::cout << "sent pkt" << std::endl;
             bytecount += valsent;
+
+            windowBuffer[(seq_num%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE] = pkt;
+            if(seq_num==10){
+                for(int z=0; z<WINDOW_SIZE; z++){
+                    std::cout << "Packet " << windowBuffer[z].seqnum << " in window buffer" << std::endl;    
+                }
+                return 0;
+            }
         }
         else{ //resend packet (until get ack?)  
             while(valread == -1){
@@ -126,7 +139,7 @@ int main(int argc, char *argv[]) {
                     std::cout << "received pkt ACKing seqnum: " << ack_pkt.acknum << std::endl;
                     std::cout << "successfully resent packet" << std::endl;
                     resending = false;
-                    noneed = true;
+                    noneed = true; //dont re listen for this ack at the end of the function
                     break;
                 }
             }
@@ -135,18 +148,40 @@ int main(int argc, char *argv[]) {
             noneed = false;
             continue;
         }
-        std::cout << "listening for ack" << std::endl;
-        valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *) &client_addr, (socklen_t *)sizeof(client_addr));
-        std::cout << "lsitened!! for ack" << std::endl;
-        if(valread == -1){
-            std::cout << "no ack received" << std::endl;
-            resending = true;
+        if(seq_num%WINDOW_SIZE != 0){ //only check for acks after sending the entire window (gobackn n=window_size)
+            continue;
         }
-        else if(ack_pkt.ack == 0){
-            resending = true;
-        }
-        else{
-            printRecv(&ack_pkt);
+        std::cout << "listening for acks" << std::endl;
+        bool windowIsGood = false;
+        while(!windowIsGood){
+            valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *) &client_addr, (socklen_t *)sizeof(client_addr));
+            if(ack_pkt.ack == 0){
+                std::cout << "ack==0 ack pkt received" << std::endl;
+                resending = true;
+            }
+            else if(ack_pkt.acknum == expected_ack_num){
+                std::cout << "received ACK pkt acking seqnum: " << ack_pkt.acknum << std::endl;
+                expected_ack_num++;
+                ackedPkts[(ack_pkt.acknum%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE] = 1;
+                //can move window over by 1?
+                //TEMPORARY: if received ack for last packet in window, reset ackedPkts (and then the window moves right 5 at once?)
+                if(ack_pkt.acknum%WINDOW_SIZE == 0){
+                    for(int i=0; i<WINDOW_SIZE; i++){
+                        ackedPkts[i] = 0;
+                        windowIsGood = true;
+                    }
+                }
+            }
+            else if(ack_pkt.acknum != expected_ack_num && ackedPkts[(ack_pkt.acknum%WINDOW_SIZE + (WINDOW_SIZE-1))%WINDOW_SIZE]==0){ //note: second condition skips this loop if the ack num was not expected, but was previously received when it was expected (ie duplicate ACK)
+                std::cout << "received ACK pkt with acknum: " << ack_pkt.acknum << " but expected acknum: " << expected_ack_num << std::endl;
+                //for now ignoring the case that received acknum > expected_ack_num, is this even a possible case?
+                //assuming ack_pkt.acknum < expected_ack_num, that means packets>ack_pkt.acknum in window were not received correctly
+                //so resend the entire window
+                for(int h=0; h<WINDOW_SIZE; h++){
+                    std::cout << "resending packet with seqnum: " << windowBuffer[h].seqnum << std::endl;
+                    valsent = sendto(send_sockfd, &windowBuffer[h], sizeof(windowBuffer[h]), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+                }
+            }
         }
         
     }

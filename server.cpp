@@ -82,26 +82,7 @@ int main() {
         }
         else{ //in-order packet: accept and ACK
             //seq_num++;
-            if(buffer.last){ //for the last packet, dont print the >>> that mark the end (I chose this)
-                for(int a=0; a<buffer.length; a++){
-                    std::cout << buffer.payload[a];
-                    if(buffer.payload[a] == '>'){
-                        std::cout << "\n carrot alert" << std::endl;
-                        break;
-                    }
-                    fprintf(fp, &buffer.payload[a]);
-                }
-            }
-            else{
-                for(int a=0; a<buffer.length; a++){
-                    std::cout << buffer.payload[a];
-                    if(buffer.payload[a] == '>'){
-                        std::cout << "\n carrot alert wrong" << std::endl;
-                        break;
-                    }
-                    fprintf(fp, &buffer.payload[a]);
-                }
-            }
+            fprintf(fp, buffer.payload);
             //ACK the packet
             ack = 1;
             build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
