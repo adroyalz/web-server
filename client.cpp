@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
             // if(seq_num == 1000){
             //     seq_num++;
             // }
-            build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer), buffer);
+            build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer)/sizeof(char), buffer);
             std::cout << pkt.payload;
             valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
             std::cout << "sent pkt" << std::endl;
@@ -151,9 +151,7 @@ int main(int argc, char *argv[]) {
         
     }
     std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
-    // build_packet(&pkt, 1, 1, 0, 'y', 0, NULL);
-    // valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-
+    
     fclose(fp);
     close(listen_sockfd);
     close(send_sockfd);
