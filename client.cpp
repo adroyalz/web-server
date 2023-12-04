@@ -6,6 +6,9 @@
 #include <time.h>
 
 #include "utils.h"
+#include <string>
+#include <vector>
+#include <iostream>
 
 
 int main(int argc, char *argv[]) {
@@ -71,9 +74,37 @@ int main(int argc, char *argv[]) {
     }
 
     // TODO: Read from file, and initiate reliable data transfer to the server
+    int c;
+    std::string file_content = "";
+    std::vector<char> tempResponse;
+    while((c=getc(fp)) != EOF){
+        file_content += c;
+    }
+    for(int i=0; i<file_content.size(); i++){
+        tempResponse.push_back(file_content[i]);
+    }
+    //char response[tempResponse.size() + 1];
+    char response[256];
+    //for(int i=0; i<tempResponse.size(); i++){
+    for(int i=0; i<255; i++){
+        response[i] = tempResponse[i];
+        std::cout << response[i];
+    }
+    //response[tempResponse.size()] = '\0';
+    response[255] = '\0';
 
- 
+
+    // build_packet(&ack_pkt, 1, 2, 'e', '1', 15, "hello world");
+    // std::cout << ack_pkt.length << " " << sizeof(ack_pkt)/sizeof(char) << std::endl;
+
+    std::cout << "writing, to port: " << htons(server_addr_to.sin_port) << std::endl;
+    int valsent = sendto(send_sockfd, response, sizeof(response), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
     
+    if(valsent<0){
+        std::cout << "cout: error writing" << std::endl;
+    }
+    std::cout << "wrote: " << std::to_string(sizeof(response)) << " bytes" << std::endl;
+
     fclose(fp);
     close(listen_sockfd);
     close(send_sockfd);

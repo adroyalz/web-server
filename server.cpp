@@ -36,7 +36,7 @@ int main() {
     server_addr.sin_port = htons(SERVER_PORT);
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    // Bind the listen socket to the server address
+    //Bind the listen socket to the server address
     if (bind(listen_sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         perror("Bind failed");
         close(listen_sockfd);
@@ -55,29 +55,15 @@ int main() {
 
     // TODO: Receive file from the client and save it as output.txt
     fprintf(fp, "the whale");
-    int BUFFER_SIZE  = 1024;
-    char buffer2[BUFFER_SIZE];
-    // ssize_t bytes_read;
-    // int server_socket, client_socket;
-    // socklen_t client_len;
+    int BUFFER_SIZE  = 4096;
+    char buffer2[BUFFER_SIZE];    
 
-    // while (1) {
-    //     client_socket = accept(server_socket, (struct sockaddr*)&client_addr_from, &client_len);
-    //     if (client_socket == -1) {
-    //         perror("accept failed");
-    //         continue;
-    //     }
-        
-    //     printf("Accepted connection from %s:%d\n", inet_ntoa(client_addr_from.sin_addr), ntohs(client_addr_from.sin_port));
-    //     close(client_socket);
-    // }
-
-    // bytes_read = recv(client_socket, buffer2, sizeof(buffer2) - 1, 0);
-    // if (bytes_read <= 0) {
-    //     std::cout << "error" << std::endl;  // Connection closed or error
-    // }
-    //buffer2[bytes_read] = '\0';
-    std::cout << buffer2 << std::endl;
+    std::cout << "reading " << std::endl;
+    int valread = 0;
+    while (valread != -1){
+        valread = recvfrom(listen_sockfd, (char*)buffer2, sizeof(buffer2), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
+        std::cout << valread << " bytes read: " << buffer2 << std::endl;
+    }
 
     fclose(fp);
     close(listen_sockfd);
