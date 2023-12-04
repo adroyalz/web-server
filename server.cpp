@@ -71,7 +71,16 @@ int main() {
             continue;
         }
         else if(buffer.seqnum == expected_seq_num){ //in-order packet: accept and ACK
-            fprintf(fp, buffer.payload); //don't print the last char or two?
+            buffer.payload[buffer.length] = '\0';
+            if(buffer.last){
+                for(int ind=0; ind<buffer.length; ind++){
+                    if(buffer.payload[ind] == '>'){
+                        buffer.payload[ind] = '\0';
+                        break;
+                    }
+                }
+            }
+            fprintf(fp, buffer.payload);
             std::cout << "received packet: " << buffer.seqnum << std::endl;
             //ACK the packet
             ack = 1;
