@@ -100,9 +100,9 @@ def forward_packets(listen_port, forward_port, test_type):
                 if len(data) > 1200:
                     # drop oversized packets
                     continue
-                if tunnel.forward_success():
+                if True: #tunnel.forward_success():
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as forward_socket:
-                        print(f'sending to port: ' + str(forward_port) + "  with data: " + str(data))
+                        print(str(data))
                         forward_socket.sendto(data, ('localhost', forward_port))
                 else:
                     print(f'Packet dropped on port {listen_port}')

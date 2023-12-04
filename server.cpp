@@ -54,15 +54,18 @@ int main() {
     FILE *fp = fopen("output.txt", "wb");
 
     // TODO: Receive file from the client and save it as output.txt
-    fprintf(fp, "the whale");
     int BUFFER_SIZE  = 4096;
     char buffer2[BUFFER_SIZE];    
 
     std::cout << "reading " << std::endl;
     int valread = 0;
-    while (valread != -1){
+    while (true){ //valread != -1
         valread = recvfrom(listen_sockfd, (char*)buffer2, sizeof(buffer2), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
-        std::cout << valread << " bytes read: " << buffer2 << std::endl;
+        std::cout << buffer2;
+        if(buffer2[0] == 'A' && buffer2[1] == 'C' && buffer2[2] == 'K'){
+            break;
+        }
+        fprintf(fp, buffer2);
     }
 
     fclose(fp);
