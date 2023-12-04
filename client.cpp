@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
     int listen_sockfd, send_sockfd;
     struct sockaddr_in client_addr, server_addr_to, server_addr_from;
     socklen_t addr_size = sizeof(server_addr_to);
-    struct timeval tv;
+    struct timeval tv_start, tv_now;
     struct packet pkt;
     struct packet ack_pkt;
     char buffer[PAYLOAD_SIZE];
@@ -77,34 +77,78 @@ int main(int argc, char *argv[]) {
     std::string file_content = "";
 
     int valsent = 0;
+    int valread = 0;
     int bytecount = 0;
     bool reachedEnd = false;
     int lastIndex = 0;
+    bool resending = false;
+    bool noneed = false;
 
     while(valsent != -1 && !reachedEnd){
-        for(int i=0; i<PAYLOAD_SIZE; i++){
-            int c = getc(fp);
-            lastIndex = i; //TODO: still need to use this --> maybe make the elements after index i in buffer some known empty value?
-            if(c == EOF){
-                last = '1';
-                reachedEnd = true;
-                break;
+        if(!resending){
+            for(int i=0; i<PAYLOAD_SIZE; i++){
+                int c = getc(fp);
+                lastIndex = i; //TODO: still need to use this --> maybe make the elements after index i in buffer some known empty value?
+                if(c == EOF){
+                    last = '1';
+                    reachedEnd = true;
+                    break;
+                }
+                buffer[i] = c;
             }
-            buffer[i] = c;
+            if(lastIndex < PAYLOAD_SIZE-1){
+                //std::cout << last << " " << PAYLOAD_SIZE-1 << " " << sizeof(buffer)/sizeof(char) << std::endl;
+                for(int j=lastIndex; j<PAYLOAD_SIZE; j++){
+                    buffer[j] = '>';
+                }
+            }
+            ack=0;
+            ack_num = 0;
+            seq_num++;
+            // if(seq_num == 1000){
+            //     seq_num++;
+            // }
+            build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer), buffer);
+            std::cout << pkt.payload;
+            valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+            std::cout << "sent pkt" << std::endl;
+            bytecount += valsent;
         }
-        if(lastIndex < PAYLOAD_SIZE-1){
-            //std::cout << last << " " << PAYLOAD_SIZE-1 << " " << sizeof(buffer)/sizeof(char) << std::endl;
-            for(int j=lastIndex; j<PAYLOAD_SIZE; j++){
-                buffer[j] = '>';
+        else{ //resend packet (until get ack?)  
+            while(valread == -1){
+                //{ //do this every x seconds?
+                    std::cout << "resending packet with seqnum: " << pkt.seqnum << std::endl;
+                    valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+                //}
+                valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *) &client_addr, (socklen_t *)sizeof(client_addr));
+                
+                if(ack_pkt.ack==1 && ack_pkt.acknum == pkt.seqnum){ //if we read something, check its an ACK with correct params
+                    std::cout << "received pkt ACKing seqnum: " << ack_pkt.acknum << std::endl;
+                    std::cout << "successfully resent packet" << std::endl;
+                    resending = false;
+                    noneed = true;
+                    break;
+                }
             }
         }
-        ack=0;
-        ack_num = 0;
-        seq_num++;
-        build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer), buffer);
-        std::cout << pkt.payload;
-        valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-        bytecount += valsent;
+        if(noneed){
+            noneed = false;
+            continue;
+        }
+        std::cout << "listening for ack" << std::endl;
+        valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *) &client_addr, (socklen_t *)sizeof(client_addr));
+        std::cout << "lsitened!! for ack" << std::endl;
+        if(valread == -1){
+            std::cout << "no ack received" << std::endl;
+            resending = true;
+        }
+        else if(ack_pkt.ack == 0){
+            resending = true;
+        }
+        else{
+            printRecv(&ack_pkt);
+        }
+        
     }
     std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
     // build_packet(&pkt, 1, 1, 0, 'y', 0, NULL);

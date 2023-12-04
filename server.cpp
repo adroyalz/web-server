@@ -13,6 +13,7 @@ int main() {
     struct packet buffer;
     socklen_t addr_size = sizeof(client_addr_from);
     int expected_seq_num = 0;
+    int seq_num = 0;
     int recv_len;
     struct packet ack_pkt;
 
@@ -56,10 +57,50 @@ int main() {
     // TODO: Receive file from the client and save it as output.txt
     std::cout << "reading " << std::endl;
     int valread = 0;
+    int valsent = 0;
+    int ack=0;
+    int lastSeqnumAcked = 0;
+
     while (true){ //valread != -1
         expected_seq_num++;
+        // std::cout << expected_seq_num << std::endl;
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
+        //std::cout << "here " << buffer.payload << std::endl;
+        // if(valread == -1){
+        //     std::cout << "no packet received" << std::endl;
+        //     continue;
+        // }
+        // std::cout << "packet received" << std::endl;
+        if(buffer.seqnum != expected_seq_num){ //out of order packet; reject for now
+            //check if receiving a pkt we already ACKed
+            if(buffer.seqnum == lastSeqnumAcked){
+                //then ACK didnt send so resend it
+                std::cout << "resending ACK for pkt with seq num: " << buffer.seqnum << std::endl;
+                ack = 1;
+                build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+                valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
+            }
+            // std::cout << "PACKET DID NOT HAVE EXPECTED SEQ NUM!" << std::endl;
+            // std::cout << "expected: " << expected_seq_num << " but read: " << buffer.seqnum << std::endl;
+            //send ack with ack=0?
+            
+            ack = 0;
+            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+            valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));;
+            expected_seq_num--;
+            continue;
+        }
+        else{
+            
+            //seq_num++;
+            //ACK the packet
+            ack = 1;
+            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+            valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
+            lastSeqnumAcked = buffer.seqnum;
+        }
         if(buffer.last){
+            std::cout << "here2" << std::endl;
             break;
         }
         //std::cout << buffer.payload;
