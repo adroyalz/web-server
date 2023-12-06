@@ -135,6 +135,7 @@ int main(int argc, char *argv[]) {
                 }
                 buffer[i] = c;
             }
+            buffer[PAYLOAD_SIZE] = '\0';
             fillBuffer(lastIndex, buffer);
             ack=0;
             ack_num = 0;
@@ -148,6 +149,7 @@ int main(int argc, char *argv[]) {
             indMostRecentPacketSent = seq_num;
             bytecount += valsent;
             if(last){
+                std::cout << "last packet sent, setting last_seq_num to: " << seq_num << std::endl;
                 last_seq_num = seq_num;
             }
             std::cout << "new window buffer: " << std::endl;
@@ -180,9 +182,6 @@ int main(int argc, char *argv[]) {
         if(ack_pkt.ack == 0){ //check ack bit
             std::cout << "ack==0 ack pkt received" << std::endl;
         }
-        else if(ack_pkt.acknum == last_seq_num){ //received ACK for last packet --> maybe change this later to received ACK for tcp close down
-            closeCon = true;
-        }
         else if(ack_pkt.acknum >= expected_ack_num){ //cumulative ACK
             std::cout << "received ACK pkt (cumulatively) acking seqnum: " << ack_pkt.acknum << std::endl; //if expecting ack5 but get ack7, we know ack5, 6 were lost but server got packets 5,6 because server will only ack7 after it has sent ack5 and 6
             expected_ack_num=ack_pkt.acknum+1;
@@ -207,10 +206,13 @@ int main(int argc, char *argv[]) {
         }
         else{
             std::cout << "Something went wrong with packet ACKing seq num: " << ack_pkt.acknum << " under expected_ack_num: " << expected_ack_num << std::endl;
-        }        
+        }     
+        if(ack_pkt.acknum == last_seq_num){ //received ACK for last packet --> maybe change this later to received ACK for tcp close down
+            closeCon = true;
+        }   
     }
     std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
-    
+
     fclose(fp);
     close(listen_sockfd);
     close(send_sockfd);
