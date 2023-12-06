@@ -60,10 +60,24 @@ int main() {
     int valsent = 0;
     int ack=0;
     int lastSeqnumAcked = 0;
+    packet windowBuffer[WINDOW_SIZE]; //make this max window size? 
+    bool outOfOrder = false;
+    int numToAck = 0;
 
     while (true){ //valread != -1
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
         if(buffer.seqnum != expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed
+            buffer.payload[buffer.length] = '\0';
+            if(buffer.last){
+                for(int ind=0; ind<buffer.length; ind++){
+                    if(buffer.payload[ind] == '>'){
+                        buffer.payload[ind] = '\0';
+                        break;
+                    }
+                }
+            }
+            windowBuffer[buffer.seqnum % WINDOW_SIZE] = buffer;
+            outOfOrder = true;
             ack = 1;
             build_packet(&ack_pkt, seq_num, lastSeqnumAcked, 0, ack, 0, NULL);
             valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));;
@@ -80,16 +94,39 @@ int main() {
                     }
                 }
             }
-            fprintf(fp, buffer.payload);
-            std::cout << "received packet: " << buffer.seqnum << std::endl;
-            //ACK the packet
-            ack = 1;
-            build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
-            valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
-            lastSeqnumAcked = buffer.seqnum;
-            expected_seq_num++;
-            seq_num++;
-            std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
+            if(outOfOrder){ //if (out of order) packets are buffered, print them after
+                fprintf(fp, buffer.payload);
+                numToAck = buffer.seqnum;
+                for(int j=0; j<WINDOW_SIZE; j++){
+                    std::cout << "in window buffer, packet: " << windowBuffer[j].seqnum << " last acked packet: " << lastSeqnumAcked << std::endl;
+                    if(windowBuffer[j].seqnum > buffer.seqnum){
+                        std::cout << "printing buffered packet: " << windowBuffer[j].seqnum << std::endl;
+                        fprintf(fp, buffer.payload);
+                        numToAck = windowBuffer[j].seqnum;
+                    }
+                }
+                outOfOrder = false;
+                //cumulatively ACK the highest buffered packet
+                ack = 1;
+                build_packet(&ack_pkt, seq_num, numToAck, 0, ack, 0, NULL);
+                valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
+                lastSeqnumAcked = numToAck;
+                expected_seq_num = numToAck+1; //change to just numToAck if following ack convention (ack7 on pkt6)
+                seq_num++; //is this right? does it even matter for ack pkts?
+                std::cout << "cumulatively ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
+            }
+            else{
+                fprintf(fp, buffer.payload);
+                std::cout << "received packet: " << buffer.seqnum << std::endl;
+                //ACK the packet
+                ack = 1;
+                build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
+                valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
+                lastSeqnumAcked = buffer.seqnum;
+                expected_seq_num++;
+                seq_num++;
+                std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
+            }
         }
         //printRecv(&buffer);
         if(buffer.last){

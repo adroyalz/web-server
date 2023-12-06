@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     int listen_sockfd, send_sockfd;
     struct sockaddr_in client_addr, server_addr_to, server_addr_from;
     socklen_t addr_size = sizeof(server_addr_to);
-    struct timeval tv_start, tv_now;
+    struct timeval tv;
     struct packet pkt;
     struct packet ack_pkt;
     char buffer[PAYLOAD_SIZE];
@@ -45,6 +45,13 @@ int main(int argc, char *argv[]) {
         perror("Could not create listen socket");
         return 1;
     }
+
+    tv.tv_sec = 10;
+    tv.tv_usec = 500000;
+    if(setsockopt(listen_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
+        perror("error setting timeout");
+    }
+
 
     // Create a UDP socket for sending
     send_sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -100,6 +107,7 @@ int main(int argc, char *argv[]) {
     bool full = false;
     int useThisIndex = 0;
     int tempSeqNum = 0; //+1
+    int indMostRecentPacketSent = 0;
 
     while(valsent != -1 && !closeCon){
         //add packets to window until we fill the window
@@ -137,6 +145,7 @@ int main(int argc, char *argv[]) {
 
             valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
             std::cout << "sent pkt: " << seq_num << std::endl;
+            indMostRecentPacketSent = seq_num;
             bytecount += valsent;
             if(last){
                 last_seq_num = seq_num;
@@ -157,6 +166,17 @@ int main(int argc, char *argv[]) {
 
         std::cout << "listening for acks" << std::endl;
         valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *) &client_addr, (socklen_t *)sizeof(client_addr));
+        if(valread == EAGAIN || valread == EWOULDBLOCK){
+            //std::cout << "ack_pkt ACKed seq num: " << ack_pkt.acknum << std::endl;
+            //resend last sent packet --> maybe remove this later? and just rely on server also timing out and resending ACK
+            // for(int j=0; j<WINDOW_SIZE; j++){
+            //     if(windowBuffer[j].seqnum == indMostRecentPacketSent){
+            //         valsent = sendto(send_sockfd, &windowBuffer[j], sizeof(windowBuffer[j]), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+            //     }
+            // }
+            std::cout << "valread error " << valread << indMostRecentPacketSent << std::endl;
+            continue;
+        }
         if(ack_pkt.ack == 0){ //check ack bit
             std::cout << "ack==0 ack pkt received" << std::endl;
         }
