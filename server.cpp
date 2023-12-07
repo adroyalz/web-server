@@ -105,6 +105,7 @@ int main() {
     while (!closeCon){ //valread != -1
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
         ack_pkt.seqnum = buffer.seqnum;
+        cout << "received packet " << buffer.seqnum << endl;
         //ack_pkt.ack = 1; //add this in? shouldnt change anything
 
         if(buffer.seqnum > expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed (!= or >?)
@@ -190,6 +191,7 @@ int main() {
                 //std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
             }
         }
+        std::cout << "sending ACK for packet: " << ack_pkt.acknum << std::endl;
         valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
         //printRecv(&buffer);
         // if(buffer.last){
