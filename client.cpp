@@ -191,10 +191,10 @@ int main(int argc, char *argv[]) {
             std::cout << "valread error " << valread << indMostRecentPacketSent << std::endl;
             continue;
         }
-        if(ack_pkt.ack == 0){ //check ack bit
-            std::cout << "ack==0 ack pkt received" << std::endl;
-        }
-        else if(ack_pkt.acknum >= expected_ack_num){ //cumulative ACK
+        // if(ack_pkt.ack == 0){ //check ack bit
+        //     std::cout << "ack==0 ack pkt received" << std::endl;
+        // }
+        if(ack_pkt.acknum >= expected_ack_num){ //cumulative ACK
             std::cout << "received ACK pkt (cumulatively) acking seqnum: " << ack_pkt.acknum << std::endl; //if expecting ack5 but get ack7, we know ack5, 6 were lost but server got packets 5,6 because server will only ack7 after it has sent ack5 and 6
             expected_ack_num=ack_pkt.acknum+1;
             for(int i=0; i<WINDOW_SIZE; i++){ //find which packets in window were ACKed and mark them as acked

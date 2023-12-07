@@ -165,27 +165,6 @@ int main() {
                 }
                 ack_pkt.acknum = expected_seq_num-1;
                 lastSeqnumAcked = ack_pkt.acknum;
-                // for(int j=0; j<windowSize; j++){
-                //     if(validWindowIndex[j] == 0){ //do not print buffered packets if they are old (already printed or NULL)
-                //         continue;
-                //     }
-                //     if(windowBuffer[j].seqnum == expected_seq_num){
-                //         //std::cout << "\n\nprinting buffered packet: " << windowBuffer[j].seqnum << std::endl;
-                //         fwrite(windowBuffer[j].payload,windowBuffer[j].length, 1, fp);
-                //         //std::cout << "-----------buffered pkt payload: " << windowBuffer[j].payload << std::endl;
-                //         validWindowIndex[j] = 0;
-                //         numToAck = windowBuffer[j].seqnum;
-                //         expected_seq_num++;
-                //         stillOutOfOrder = false; //if every packet in buffer was in order, then stillOutOfOrder is false at the end of the for loop and outOfOrder is set to false
-                //     }
-                //     else{ //we are missing another packet that we thought was buffered (note: this works since window is sorted)
-                //         if(windowBuffer[j].seqnum != expected_seq_num){
-                //             //do not continue printing other buffered packets (because there is a gap between packets that needs to be fixed)
-                //             stillOutOfOrder = true;
-                //             break;
-                //         }
-                //     }
-                // }
                 // outOfOrder = stillOutOfOrder;
                 //std::cout << "expected_seq_num: " << expected_seq_num << std::endl;
                 //outOfOrder = false;
@@ -205,19 +184,12 @@ int main() {
                 //std::cout << "in order, printing packet: " << buffer.seqnum << std::endl;
                 fwrite(buffer.payload, buffer.length, 1, fp);
                 //std::cout << "received packet: " << buffer.seqnum << std::endl;
-                //ACK the packet
-                // ack = 1;
-                // build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
-                // valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
                 ack_pkt.acknum = buffer.seqnum;
                 lastSeqnumAcked = ack_pkt.acknum;
                 expected_seq_num++;
-                //seq_num++;
                 //std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
             }
         }
-        // ack = 1;
-        // build_packet(&ack_pkt, seq_num, buffer.seqnum, 0, ack, 0, NULL);
         valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
         //printRecv(&buffer);
         // if(buffer.last){
