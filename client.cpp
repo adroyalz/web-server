@@ -46,8 +46,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    tv.tv_sec = 10;
-    tv.tv_usec = 500000;
+    tv = {0, 500000};
     if(setsockopt(listen_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
         perror("error setting timeout");
     }
@@ -108,6 +107,7 @@ int main(int argc, char *argv[]) {
     int useThisIndex = 0;
     int tempSeqNum = 0; //+1
     int indMostRecentPacketSent = 0;
+    int read = 0;
 
     while(valsent != -1 && !closeCon){
         //add packets to window until we fill the window
@@ -126,28 +126,40 @@ int main(int argc, char *argv[]) {
             if(full){
                 break;
             }
-            for(int i=0; i<PAYLOAD_SIZE; i++){
-                int c = getc(fp);
-                lastIndex = i; //TODO: still need to use this --> maybe make the elements after index i in buffer some known empty value?
-                if(c == EOF){
-                    last = '1';
-                    break;
-                }
-                buffer[i] = c;
-            }
-            buffer[PAYLOAD_SIZE] = '\0';
-            fillBuffer(lastIndex, buffer);
-            ack=0;
-            ack_num = 0;
-            seq_num++;
-            build_packet(&pkt, seq_num, ack_num, last, ack, sizeof(buffer)/sizeof(char), buffer);
-            windowBuffer[useThisIndex] = pkt;
-            ackedPkts[useThisIndex] = 0; //change this to 1 when the respective windowbuffer packet is acked
+            // for(int i=0; i<PAYLOAD_SIZE; i++){
+            //     int c = getc(fp);
+            //     lastIndex = i; //TODO: still need to use this --> maybe make the elements after index i in buffer some known empty value?
+            //     if(c == EOF){
+            //         last = '1';
+            //         break;
+            //     }
+            //     buffer[i] = c;
+            // }
+            //fillBuffer(lastIndex, buffer);
+            //buffer[PAYLOAD_SIZE] = '\0';
 
-            valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-            std::cout << "sent pkt: " << seq_num << std::endl;
-            indMostRecentPacketSent = seq_num;
-            bytecount += valsent;
+            read = fread(buffer, 1, sizeof(buffer), fp);
+            if(read <= 0){
+                seq_num++;
+                ack_num = 0;
+                last = '1';
+                ack=0;
+                //build_packet(&pkt, seq_num, ack_num, last, ack, read, buffer);
+                build_packet(&pkt, seq_num, ack_num, last, ack, 0, "");
+            }
+            else{        
+                ack=0;
+                ack_num = 0;
+                seq_num++;
+                build_packet(&pkt, seq_num, ack_num, last, ack, read, buffer);
+                windowBuffer[useThisIndex] = pkt;
+                ackedPkts[useThisIndex] = 0; //change this to 1 when the respective windowbuffer packet is acked
+
+                valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
+                std::cout << "sent pkt: " << seq_num << std::endl;
+                indMostRecentPacketSent = seq_num;
+                bytecount += valsent;
+            }
             if(last){
                 std::cout << "last packet sent, setting last_seq_num to: " << seq_num << std::endl;
                 last_seq_num = seq_num;
