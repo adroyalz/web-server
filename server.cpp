@@ -106,6 +106,10 @@ int main() {
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
         ack_pkt.seqnum = buffer.seqnum;
         cout << "received packet " << buffer.seqnum << endl;
+        if(buffer.seqnum > 2000){
+            cout << "contents: " << buffer.payload << endl;
+        }
+        
         //ack_pkt.ack = 1; //add this in? shouldnt change anything
 
         if(buffer.seqnum > expected_seq_num){ //out of order packet; keep ACKing last packet we already ACKed (!= or >?)
