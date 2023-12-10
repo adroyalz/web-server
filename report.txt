@@ -1,2 +1,12 @@
 Please concisely describe your congestion control scheme here.
 No need to be verbose, brief descriptions/bullet points are preferred.
+
+My congestion control scheme mostly follows the one for TCP, as follows:
+-The program begins reading data from the input file, putting it into packets, and pushing those packets into the buffer
+-on each non-duplicate ACK (and while cwnd <= ssthresh), the cwnd size increases by 1 according to slow start
+    -if cwnd>ssthresh, it increases by 1/(floor)cwnd each time instead (congestion avoidance)
+-if a timeout is detected, ssthresh is set to the max of (cwnd/2, 2) and cwnd is set to 1
+-cwnd is not increased on duplicate ACKs until the 3rd duplicate ACK, when the missing packet is retransmitted
+    -ssthresh is set to the max of (cwnd/2, 2) and cwnd is set to ssthresh+3
+-beyond the 3rd duplicate ACK, we enter fast recovery and cwnd increases by 1 per ACK
+-when a new non-duplicate ACK is finally detected, cwnd is set to ssthresh and we exit fast recovery (and resume slow start)

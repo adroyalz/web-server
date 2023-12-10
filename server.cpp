@@ -10,35 +10,6 @@
 
 using namespace std;
 
-void sort(packet windowBuffer[], int validWindowIndex[], int arraySize){
-    for(int a=0; a<arraySize; a++){
-        if(validWindowIndex[a] == 0){
-            continue;
-        }
-        int smallest = a;
-        for(int b=a; b<arraySize; b++){
-            if(validWindowIndex[b] == 0){
-                continue;
-            }
-            if(windowBuffer[b].seqnum < windowBuffer[smallest].seqnum){
-                //std::cout << windowBuffer[b].seqnum << " is smaller than (" << b << ", " << smallest << ") " << windowBuffer[smallest].seqnum << std::endl;
-                smallest = b;
-            } 
-        }
-        //std::cout << "switching: " << std::endl;
-        packet temp = windowBuffer[smallest];
-        windowBuffer[smallest] = windowBuffer[a];
-        windowBuffer[a] = temp;
-    }
-    //std::cout << "sorted array: " << std::endl;
-    // for(int c=0; c<arraySize; c++){
-    //     if(validWindowIndex[c] == 1){
-    //         std::cout << windowBuffer[c].seqnum << std::endl;
-    //     }
-    // }
-}
-
-
 int main() {
     int listen_sockfd, send_sockfd;
     struct sockaddr_in server_addr, client_addr_from, client_addr_to;
@@ -92,9 +63,7 @@ int main() {
     int valsent = 0;
     int ack=0;
     int lastSeqnumAcked = 0; //deal with pkt1 dropped => so ack pkt 0
-    int windowSize = SSTHRESH;
     vector<packet> windowBuffer;
-    int validWindowIndex[windowSize] = {0};
     bool outOfOrder = false;
     int numToAck = 0;
     bool closeCon = false;

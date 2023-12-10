@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    tv = {0, 500000};
+    tv = {0, 800000};
     if(setsockopt(listen_sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0){
         perror("error setting timeout");
     }
@@ -98,8 +98,8 @@ int main(int argc, char *argv[]) {
     int indMostRecentPacketSent = 0;
     int read = 0;
     int lastPacketACKed = 0; //seqnum of that packet
-    double cwnd = WINDOW_SIZE;
-    int ssthresh = SSTHRESH;
+    double cwnd = 1;
+    int ssthresh = 8;
     int dupCount = 0;
     bool inFastRecovery = false;
     int fakeEnd = 0;
