@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
     //fakeEnd--; //after packet loss and cwnd reset, cwnd might be < current windowBuffer size
     while(!closeCon){  //valsent != -1 && 
         //add packets to window till we reach limit
-        if(fakeEnd <= cwnd){
+        if(fakeEnd <= cwnd && !last){
             cout << "\ncreating and sending packets: " << endl;
         }
         int tempcwnd = (int)cwnd;
@@ -138,6 +138,7 @@ int main(int argc, char *argv[]) {
                 cout << "last packet built, setting last_seq_num to: " << seq_num << endl;
                 last_seq_num = seq_num;
                 windowBuffer.push_back(pkt);
+                fakeEnd++;
                 //send the packet
                 valsent = sendto(send_sockfd, &pkt, sizeof(pkt),  0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
                 //cout << "valsent: " << valsent << endl;
@@ -159,9 +160,9 @@ int main(int argc, char *argv[]) {
             bytecount += valsent; 
             cout << pkt.seqnum << ", " << endl;
         }    
-        if(cwnd <= ssthresh){
-            cwnd++;
-        }
+        // if(cwnd <= ssthresh){
+        //     cwnd++;
+        // }
         //TEMPORARY    
         cout << "\nnew window buffer: " << endl;
         for(int j=0; j<windowBuffer.size(); j++){ //for(int j=0; j<fakeEnd; j++){
