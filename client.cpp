@@ -99,6 +99,10 @@ int main(int argc, char *argv[]) {
     int read = 0;
     int lastPacketACKed = 0; //seqnum of that packet
     double cwnd = WINDOW_SIZE;
+    int ssthresh = SSTHRESH;
+    int dupCount = 0;
+    bool inFastRecovery = false;
+    int fakeEnd = 0;
 
     // for(int i=0; i<cwnd; i++){
     //     read = fread(buffer, 1, sizeof(buffer), fp);
@@ -114,13 +118,14 @@ int main(int argc, char *argv[]) {
     //     }
 
     // }
-
+    //fakeEnd--; //after packet loss and cwnd reset, cwnd might be < current windowBuffer size
     while(!closeCon){  //valsent != -1 && 
         //add packets to window till we reach limit
-        if(windowBuffer.size() <= cwnd){
+        if(fakeEnd <= cwnd){
             cout << "\ncreating and sending packets: " << endl;
         }
-        while(windowBuffer.size() <= cwnd){
+        int tempcwnd = (int)cwnd;
+        while(windowBuffer.size() <= tempcwnd && !last){ //while(fakeEnd <= tempcwnd && !last){
             read = fread(buffer, 1, sizeof(buffer), fp);
             if(read <= 0){
                 //done reasing
@@ -143,6 +148,7 @@ int main(int argc, char *argv[]) {
             seq_num++;
             build_packet(&pkt, seq_num, 0, 0, 0, read, buffer);
             windowBuffer.push_back(pkt);
+            fakeEnd++;
             //send the packet
             valsent = sendto(send_sockfd, &pkt, sizeof(pkt),  0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
             //cout << "valsent: " << valsent << endl;
@@ -153,15 +159,18 @@ int main(int argc, char *argv[]) {
             bytecount += valsent; 
             cout << pkt.seqnum << ", " << endl;
         }    
+        if(cwnd <= ssthresh){
+            cwnd++;
+        }
         //TEMPORARY    
         cout << "\nnew window buffer: " << endl;
-        for(int j=0; j<windowBuffer.size(); j++){
+        for(int j=0; j<windowBuffer.size(); j++){ //for(int j=0; j<fakeEnd; j++){
             cout << windowBuffer[j].seqnum << " " << endl;
         }
         //TEMPORARY
-        if(last){
-            break;
-        }
+        // if(last){
+        //     break;
+        // }
         // else{
         //     //clear buffer and continue
         //     while(windowBuffer.size()){
@@ -174,32 +183,18 @@ int main(int argc, char *argv[]) {
         valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, NULL, NULL);
         if(valread == -1){
             if(errno == EAGAIN || errno == EWOULDBLOCK){
-                //std::cout << "ack_pkt ACKed seq num: " << ack_pkt.acknum << std::endl;
-                //resend last sent packet --> maybe remove this later? and just rely on server also timing out and resending ACK
-                // for(int j=0; j<WINDOW_SIZE; j++){
-                //     if(windowBuffer[j].seqnum == indMostRecentPacketSent){
-                //         valsent = sendto(send_sockfd, &windowBuffer[j], sizeof(windowBuffer[j]), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-                //     }
-                // }
-                //std::cout << "buffer: " << ack_pkt.acknum << std::endl;
                 std::cout << "timed out, last sent pkt: " << indMostRecentPacketSent << std::endl;
-                // valsent = sendto(send_sockfd, &windowBuffer.begin(), sizeof(windowBuffer.begin()),  0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-                // std::cout << "resent packet " << windowBuffer.begin()->seqnum << std::endl;
-                // for(vector<packet>::iterator i=windowBuffer.begin(); i != windowBuffer.end(); i++){
-                //     if(i->seqnum == lastPacketACKed+1){
-                //         std::cout << "resent packet " << i->seqnum << std::endl;
-                //          std::cout << "contents: " << i->payload << std::endl;
-                //         valsent = sendto(send_sockfd, &i, sizeof(i),  0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-                //     }   
-                // }
-                for (int i = 0; i < windowBuffer.size(); i++)
-                {
-                    if (windowBuffer[i].seqnum == lastPacketACKed+1)
-                    {
+                for (int i = 0; i < windowBuffer.size(); i++){ //for (int i = 0; i < fakeEnd; i++){
+                    if (windowBuffer[i].seqnum == lastPacketACKed+1){
                         printSend(&windowBuffer[i], 1);
                         sendto(send_sockfd, (void *)&windowBuffer[i], sizeof(windowBuffer[i]), 0, (struct sockaddr *)&server_addr_to, addr_size);
                     }
                 }
+                //timed out; reset cwnd and ssthresh
+                ssthresh = max(cwnd/2, 2.0);
+                cwnd = 1;
+                //fakeEnd = 1;
+
                 continue;
             }
         }
@@ -208,12 +203,28 @@ int main(int argc, char *argv[]) {
             if(ack_pkt.acknum >= expected_ack_num){ //cumulative ACK
                 std::cout << "received ACK pkt (cumulatively) acking seqnum: " << ack_pkt.acknum << std::endl; //if expecting ack5 but get ack7, we know ack5, 6 were lost but server got packets 5,6 because server will only ack7 after it has sent ack5 and 6
                 expected_ack_num=ack_pkt.acknum+1;
+                if(inFastRecovery){
+                    cwnd = ssthresh;
+                    //fakeEnd = cwnd;
+                    inFastRecovery = false;
+                }
+                if(cwnd <= ssthresh){
+                    cwnd++;
+                    std::cout << "new cwnd size: " << cwnd << std::endl;
+                }
+                else{ //cwnd>ssthresh, congestion avoidance
+                int floor = (int)cwnd;
+                double temp = (double)floor;
+                    cwnd += 1/temp;
+                }
+                dupCount = 0;
                 vector<packet>::iterator i = windowBuffer.begin();
-                while(i!=windowBuffer.end()){
+                while(i!=windowBuffer.end() && fakeEnd != 0){// && fakeEnd != -1){
                     if(i->seqnum <= ack_pkt.acknum){
                         std::cout << "marking as ACKED - seq num " << i->seqnum << std::endl;
                         lastPacketACKed = i->seqnum;
-                        windowBuffer.erase(i);
+                        i = windowBuffer.erase(i); //windowBuffer.erase(i);
+                        fakeEnd--;
                     }
                     else{
                         i++;
@@ -223,15 +234,7 @@ int main(int argc, char *argv[]) {
             else if(ack_pkt.acknum < expected_ack_num ){ 
                 std::cout << "------received ACK pkt with acknum: " << ack_pkt.acknum << " but expected acknum: " << expected_ack_num << std::endl;
                 //so resend that packet
-                // for(vector<packet>::iterator i=windowBuffer.begin(); i != windowBuffer.end(); i++){
-                //     if(i->seqnum == lastPacketACKed+1){
-                //         std::cout << "resent packet " << i->seqnum << std::endl;
-                //         //std::cout << "for reference, lastPacketACKed+1: " << lastPacketACKed+1 << " expected ack num: " << expected_ack_num << std::endl;
-                //         valsent = sendto(send_sockfd, &i, sizeof(i),  0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-                //         break;
-                //     }   
-                // }
-                for (int i = 0; i < windowBuffer.size(); i++)
+                for (int i = 0; i < windowBuffer.size(); i++) //for (int i = 0; i < fakeEnd; i++)
                 {
                     if (windowBuffer[i].seqnum == lastPacketACKed+1)
                     {
@@ -239,12 +242,33 @@ int main(int argc, char *argv[]) {
                         sendto(send_sockfd, (void *)&windowBuffer[i], sizeof(windowBuffer[i]), 0, (struct sockaddr *)&server_addr_to, addr_size);
                     }
                 }
-                // for(int h=0; h<windowBuffer.size(); h++){
-                //     if(windowBuffer[h].seqnum == expected_ack_num){ //find packet in window that needs to be resent
-                //         std::cout << "resending packet with seqnum: " << windowBuffer[h].seqnum << std::endl;
-                //         valsent = sendto(send_sockfd, &windowBuffer[h], sizeof(windowBuffer[h]), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
-                //     }
-                // }
+                //getting to this else if means we lost a packet
+                if(ack_pkt.acknum == lastPacketACKed){
+                    dupCount++;
+                }
+                else{
+                    std::cout << "impossible else, ack_pkt.acknum: " << ack_pkt.acknum << " and lastPacketACKed: " << lastPacketACKed  << std::endl;
+                    dupCount = 0;
+                }
+                if(dupCount == 3){ //fast retransmit
+                    std::cout << "received 3rd dup ACK, new cwnd size: " << cwnd << std::endl;
+                    ssthresh = max(cwnd/2, 2.0);
+                    cwnd = ssthresh + 3;
+                    for (int i = 0; i < windowBuffer.size(); i++){ // for (int i = 0; i < fakeEnd; i++){
+                        if (windowBuffer[i].seqnum == lastPacketACKed+1){
+                            printSend(&windowBuffer[i], 1);
+                            sendto(send_sockfd, (void *)&windowBuffer[i], sizeof(windowBuffer[i]), 0, (struct sockaddr *)&server_addr_to, addr_size);
+                        }
+                    }
+                }
+                else if(dupCount > 3){ //fast recovery
+                    inFastRecovery = true;
+                    cwnd++;
+                }
+                else{
+                    std::cout << "received " << dupCount << " dup ACK" << std::endl;
+                }
+                
             }
             else{
                 std::cout << "Something went wrong with packet ACKing seq num: " << ack_pkt.acknum << " under expected_ack_num: " << expected_ack_num << std::endl;

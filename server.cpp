@@ -127,6 +127,9 @@ int main() {
         else if(buffer.seqnum == expected_seq_num){ //in-order packet: accept and ACK
             // buffer.payload[buffer.length] = '\0';
             if(buffer.last){
+                ack_pkt.acknum = buffer.seqnum;
+                lastSeqnumAcked = ack_pkt.acknum;
+                expected_seq_num++;
                 build_packet(&ack_pkt, buffer.seqnum, buffer.seqnum, 0, 0, 0, "");
                 valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
                 closeCon = true;
@@ -156,7 +159,10 @@ int main() {
                     else{
                         if(windowBuffer.begin()->last){ //last packet => mark closeCon as true  TODO
                             ack_pkt.acknum = windowBuffer.begin()->seqnum; // should be == expected_seq_num 
+                            closeCon = true;
+                            std::cout << "printed last packet (from buffer)" << std::endl;
                             sendto(send_sockfd, (void *)&ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr_to, sizeof(client_addr_to));
+                            std::cout << "acked (cumulatively?): " << ack_pkt.acknum << std::endl;
                             fclose(fp);
                             close(listen_sockfd);
                             close(send_sockfd);
