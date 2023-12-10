@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
                 ack=0;
                 // //build_packet(&pkt, seq_num, ack_num, last, ack, read, buffer);
                 build_packet(&pkt, seq_num, ack_num, last, ack, 0, "");
-                cout << "last packet built, setting last_seq_num to: " << seq_num << endl;
+               // cout << "last packet built, setting last_seq_num to: " << seq_num << endl;
                 last_seq_num = seq_num;
                 windowBuffer.push_back(pkt);
                 //send the packet
@@ -157,16 +157,16 @@ int main(int argc, char *argv[]) {
 
             //FOR TESTING
             bytecount += valsent; 
-            cout << pkt.seqnum << ", " << endl;
+            //cout << pkt.seqnum << ", " << endl;
         }    
         if(cwnd <= ssthresh){
             cwnd++;
         }
         //TEMPORARY    
-        cout << "\nnew window buffer: " << endl;
-        for(int j=0; j<windowBuffer.size(); j++){ //for(int j=0; j<fakeEnd; j++){
-            cout << windowBuffer[j].seqnum << " " << endl;
-        }
+        //cout << "\nnew window buffer: " << endl;
+        // for(int j=0; j<windowBuffer.size(); j++){ //for(int j=0; j<fakeEnd; j++){
+        //     cout << windowBuffer[j].seqnum << " " << endl;
+        // }
         //TEMPORARY
         // if(last){
         //     break;
@@ -183,10 +183,10 @@ int main(int argc, char *argv[]) {
         valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, NULL, NULL);
         if(valread == -1){
             if(errno == EAGAIN || errno == EWOULDBLOCK){
-                std::cout << "timed out, last sent pkt: " << indMostRecentPacketSent << std::endl;
+                //std::cout << "timed out, last sent pkt: " << indMostRecentPacketSent << std::endl;
                 for (int i = 0; i < windowBuffer.size(); i++){ //for (int i = 0; i < fakeEnd; i++){
                     if (windowBuffer[i].seqnum == lastPacketACKed+1){
-                        printSend(&windowBuffer[i], 1);
+                        //printSend(&windowBuffer[i], 1);
                         sendto(send_sockfd, (void *)&windowBuffer[i], sizeof(windowBuffer[i]), 0, (struct sockaddr *)&server_addr_to, addr_size);
                     }
                 }
@@ -199,9 +199,9 @@ int main(int argc, char *argv[]) {
             }
         }
         else{ //received a packet (an ACK)
-            std::cout << "received ACK pkt acking seqnum: " << ack_pkt.acknum << std::endl;
+            //std::cout << "received ACK pkt acking seqnum: " << ack_pkt.acknum << std::endl;
             if(ack_pkt.acknum >= expected_ack_num){ //cumulative ACK
-                std::cout << "received ACK pkt (cumulatively) acking seqnum: " << ack_pkt.acknum << std::endl; //if expecting ack5 but get ack7, we know ack5, 6 were lost but server got packets 5,6 because server will only ack7 after it has sent ack5 and 6
+                //std::cout << "received ACK pkt (cumulatively) acking seqnum: " << ack_pkt.acknum << std::endl; //if expecting ack5 but get ack7, we know ack5, 6 were lost but server got packets 5,6 because server will only ack7 after it has sent ack5 and 6
                 expected_ack_num=ack_pkt.acknum+1;
                 if(inFastRecovery){ //in fast recovery and received a new ACK, so set cwnd to ssthresh, cwnd++, then go back to slow start
                     cwnd = ssthresh;
@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
                 }
                 if(cwnd <= ssthresh){ //slow start
                     cwnd++;
-                    std::cout << "new cwnd size: " << cwnd << std::endl;
+                    //std::cout << "new cwnd size: " << cwnd << std::endl;
                 }
                 else{ //cwnd>ssthresh, congestion avoidance
                     int floor = (int)cwnd;
@@ -232,23 +232,23 @@ int main(int argc, char *argv[]) {
                 }
             }
             else if(ack_pkt.acknum < expected_ack_num ){ 
-                cout << "------received ACK pkt with acknum: " << ack_pkt.acknum << " but expected acknum: " << expected_ack_num << endl;
-                cout << "------last packed ACKed: " << lastPacketACKed << endl;
+                // cout << "------received ACK pkt with acknum: " << ack_pkt.acknum << " but expected acknum: " << expected_ack_num << endl;
+                // cout << "------last packed ACKed: " << lastPacketACKed << endl;
                 //getting to this else if means we lost a packet
                 if(ack_pkt.acknum == lastPacketACKed){
                     dupCount++;
                 }
                 else{
-                    std::cout << "impossible else, ack_pkt.acknum: " << ack_pkt.acknum << " and lastPacketACKed: " << lastPacketACKed  << std::endl;
+                    //std::cout << "impossible else, ack_pkt.acknum: " << ack_pkt.acknum << " and lastPacketACKed: " << lastPacketACKed  << std::endl;
                     dupCount = 0;
                 }
                 if(dupCount == 3){ //fast retransmit
-                    std::cout << "received 3rd dup ACK, new cwnd size: " << cwnd << std::endl;
+                    //std::cout << "received 3rd dup ACK, new cwnd size: " << cwnd << std::endl;
                     ssthresh = max(cwnd/2, 2.0);
                     cwnd = ssthresh + 3;
                     for (int i = 0; i < windowBuffer.size(); i++){ // for (int i = 0; i < fakeEnd; i++){  //resend that packet
                         if (windowBuffer[i].seqnum == lastPacketACKed+1){
-                            printSend(&windowBuffer[i], 1);
+                           // printSend(&windowBuffer[i], 1);
                             sendto(send_sockfd, (void *)&windowBuffer[i], sizeof(windowBuffer[i]), 0, (struct sockaddr *)&server_addr_to, addr_size);
                         }
                     }
@@ -258,12 +258,12 @@ int main(int argc, char *argv[]) {
                     cwnd++;
                 }
                 else{
-                    std::cout << "received " << dupCount << " dup ACK" << std::endl;
+                   // std::cout << "received " << dupCount << " dup ACK" << std::endl;
                 }
                 
             }
             else{
-                std::cout << "Something went wrong with packet ACKing seq num: " << ack_pkt.acknum << " under expected_ack_num: " << expected_ack_num << std::endl;
+               // std::cout << "Something went wrong with packet ACKing seq num: " << ack_pkt.acknum << " under expected_ack_num: " << expected_ack_num << std::endl;
             }     
             if(ack_pkt.acknum == last_seq_num){ //received ACK for last packet --> maybe change this later to received ACK for tcp close down
                 closeCon = true;
@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
 
     //send last packet
 
-    std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
+    //std::cout << "\nwrote: " << std::to_string(bytecount) << " bytes" << std::endl;
     valsent = sendto(send_sockfd, &pkt, sizeof(pkt), 0, (const struct sockaddr *) &server_addr_to, sizeof(server_addr_to));
                     
     fclose(fp);
