@@ -74,7 +74,7 @@ int main() {
     while (!closeCon){ //valread != -1
         valread = recvfrom(listen_sockfd, &buffer, sizeof(buffer), 0, (struct sockaddr*) &server_addr, (socklen_t *)(sizeof(server_addr)));
         ack_pkt.seqnum = buffer.seqnum;
-        //cout << "received packet " << buffer.seqnum << endl;
+        cout << "received packet " << buffer.seqnum << endl;
         // if(buffer.seqnum > 2000){
         //     cout << "contents: " << buffer.payload << endl;
         // }
@@ -102,7 +102,7 @@ int main() {
                 build_packet(&ack_pkt, buffer.seqnum, buffer.seqnum, 0, 0, 0, "");
                 valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
                 closeCon = true;
-                //std::cout << "received last packet" << std::endl;
+                std::cout << "received last packet" << std::endl;
                 continue;
             }
             //NEW: remove this line eventually?
@@ -129,9 +129,9 @@ int main() {
                         if(windowBuffer.begin()->last){ //last packet => mark closeCon as true  TODO
                             ack_pkt.acknum = windowBuffer.begin()->seqnum; // should be == expected_seq_num 
                             closeCon = true;
-                           // std::cout << "printed last packet (from buffer)" << std::endl;
+                            std::cout << "printed last packet (from buffer)" << std::endl;
                             sendto(send_sockfd, (void *)&ack_pkt, sizeof(ack_pkt), 0, (struct sockaddr *)&client_addr_to, sizeof(client_addr_to));
-                           // std::cout << "acked (cumulatively?): " << ack_pkt.acknum << std::endl;
+                            std::cout << "acked (cumulatively?): " << ack_pkt.acknum << std::endl;
                             fclose(fp);
                             close(listen_sockfd);
                             close(send_sockfd);
@@ -161,16 +161,16 @@ int main() {
                 // }
             }
             else{ //nothing is buffered
-                //std::cout << "in order, printing packet: " << buffer.seqnum << std::endl;
+                std::cout << "in order, printing packet: " << buffer.seqnum << std::endl;
                 fwrite(buffer.payload, buffer.length, 1, fp);
                 //std::cout << "received packet: " << buffer.seqnum << std::endl;
                 ack_pkt.acknum = buffer.seqnum;
                 lastSeqnumAcked = ack_pkt.acknum;
                 expected_seq_num++;
-                //std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
+                std::cout << "ACKed: " << lastSeqnumAcked << ", new expected_seq_num: " << expected_seq_num << std::endl;
             }
         }
-       // std::cout << "sending ACK for packet: " << ack_pkt.acknum << std::endl;
+        std::cout << "sending ACK for packet: " << ack_pkt.acknum << std::endl;
         valsent = sendto(send_sockfd, &ack_pkt, sizeof(ack_pkt), 0, (const struct sockaddr *) &client_addr_to, sizeof(client_addr_to));
         //printRecv(&buffer);
         // if(buffer.last){
