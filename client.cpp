@@ -121,9 +121,9 @@ int main(int argc, char *argv[]) {
     //fakeEnd--; //after packet loss and cwnd reset, cwnd might be < current windowBuffer size
     while(!closeCon){  //valsent != -1 && 
         //add packets to window till we reach limit
-        if(fakeEnd <= cwnd){
-            cout << "\ncreating and sending packets: " << endl;
-        }
+        // if(fakeEnd <= cwnd){
+        //     cout << "\ncreating and sending packets: " << endl;
+        // }
         int tempcwnd = (int)cwnd;
         while(windowBuffer.size() <= tempcwnd && !last){ //while(fakeEnd <= tempcwnd && !last){
             read = fread(buffer, 1, sizeof(buffer), fp);
@@ -159,9 +159,9 @@ int main(int argc, char *argv[]) {
             bytecount += valsent; 
             //cout << pkt.seqnum << ", " << endl;
         }    
-        if(cwnd <= ssthresh){
-            cwnd++;
-        }
+        // if(cwnd <= ssthresh){
+        //     cwnd++;
+        // }
         //TEMPORARY    
         //cout << "\nnew window buffer: " << endl;
         // for(int j=0; j<windowBuffer.size(); j++){ //for(int j=0; j<fakeEnd; j++){
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
         //     continue;
         // }
 
-        std::cout << "listening for acks" << std::endl;
+        //std::cout << "listening for acks" << std::endl;
         valread = recvfrom(listen_sockfd, &ack_pkt, sizeof(ack_pkt), 0, NULL, NULL);
         if(valread == -1){
             if(errno == EAGAIN || errno == EWOULDBLOCK){
@@ -221,7 +221,7 @@ int main(int argc, char *argv[]) {
                 vector<packet>::iterator i = windowBuffer.begin();
                 while(i!=windowBuffer.end() && fakeEnd != 0){// && fakeEnd != -1){
                     if(i->seqnum <= ack_pkt.acknum){
-                        std::cout << "marking as ACKED - seq num " << i->seqnum << std::endl;
+                       // std::cout << "marking as ACKED - seq num " << i->seqnum << std::endl;
                         lastPacketACKed = i->seqnum;
                         i = windowBuffer.erase(i); //windowBuffer.erase(i);
                         fakeEnd--;
